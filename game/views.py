@@ -147,3 +147,32 @@ def set_ready_status(request):
 
 
 
+import random
+from .models import GameImage
+
+@api_view(["GET"])
+def start_game(request):
+    category = request.GET.get("category")
+
+    if not category:
+        return Response({
+            "success": False,
+            "message": "Category is required"
+        }, status=400)
+
+    images = GameImage.objects.filter(category=category)
+
+    if images.count() < 2:
+        return Response({
+            "success": False,
+            "message": "Not enough images in this category"
+        }, status=400)
+
+    selected = random.sample(list(images), 2)
+
+    return Response({
+        "success": True,
+        "player1_image": selected[0].image_url,
+        "player2_image": selected[1].image_url,
+        "category": category
+    })
