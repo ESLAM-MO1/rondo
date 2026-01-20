@@ -70,8 +70,6 @@ def postDataFromPageJoin(request):
         "key": key
     })
 
-
-# Room Status (Waiting Room)
 @api_view(["GET"])
 def getRoomStatus(request):
     key = request.GET.get("key")
@@ -90,11 +88,62 @@ def getRoomStatus(request):
             "message": "Room not found"
         }, status=404)
 
-    ready = room.player2 is not None and room.player2 != ""
+    ready = room.player2 not in [None, ""]
+
+    both_ready = room.player1_ready and room.player2_ready
 
     return Response({
         "success": True,
         "player1": room.player1,
         "player2": room.player2,
-        "ready": ready
+        "ready": ready,
+        "player1_ready": room.player1_ready,
+        "player2_ready": room.player2_ready,
+        "both_ready": both_ready
     })
+
+@api_view(["POST"])
+def set_ready_status(request):
+    key = request.data.get("key")
+    name = request.data.get("name")
+    ready = request.data.get("ready")
+
+    if key is None or name is None or ready is None:
+        return Response({
+            "success": False,
+            "message": "key, name and ready are required"
+        }, status=400)
+
+    try:
+        room = Room.objects.get(key=key)
+    except Room.DoesNotExist:
+        return Response({
+            "success": False,
+            "message": "Room not found"
+        }, status=404)
+
+    # تحديد مين اللاعب اللي بيبعت
+    if room.player1 == name:
+        room.player1_ready = bool(ready)
+    elif room.player2 == name:
+        room.player2_ready = bool(ready)
+    else:
+        return Response({
+            "success": False,
+            "message": "Player not found in this room"
+        }, status=400)
+
+    room.save()
+
+    both_ready = room.player1_ready and room.player2_ready
+
+    return Response({
+        "success": True,
+        "message": "Ready status updated",
+        "player1_ready": room.player1_ready,
+        "player2_ready": room.player2_ready,
+        "both_ready": both_ready
+    })
+
+
+
