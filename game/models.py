@@ -4,14 +4,13 @@ from django.db import models
 class Room(models.Model):
     key = models.CharField(max_length=10, unique=True)
     player1 = models.CharField(max_length=100)
-    player2 = models.CharField(max_length=100, blank=True, null=True)
+    player2 = models.CharField(max_length=100, null=True, blank=True)
 
-    # Ready system
     player1_ready = models.BooleanField(default=False)
     player2_ready = models.BooleanField(default=False)
 
-    def __str__(self):
-        return self.key
+    player1_image = models.TextField(null=True, blank=True)
+    player2_image = models.TextField(null=True, blank=True)
 
 
 class GameImage(models.Model):

@@ -99,8 +99,13 @@ def getRoomStatus(request):
         "ready": ready,
         "player1_ready": room.player1_ready,
         "player2_ready": room.player2_ready,
-        "both_ready": both_ready
+        "both_ready": both_ready,
+
+        # 👇 دول اللي Flutter مستنيهم
+        "player1_image": room.player1_image,
+        "player2_image": room.player2_image,
     })
+
 
 @api_view(["POST"])
 def set_ready_status(request):
@@ -152,13 +157,22 @@ from .models import GameImage
 
 @api_view(["GET"])
 def start_game(request):
+    key = request.GET.get("key")
     category = request.GET.get("category")
 
-    if not category:
+    if not key or not category:
         return Response({
             "success": False,
-            "message": "Category is required"
+            "message": "key and category are required"
         }, status=400)
+
+    try:
+        room = Room.objects.get(key=key)
+    except Room.DoesNotExist:
+        return Response({
+            "success": False,
+            "message": "Room not found"
+        }, status=404)
 
     images = GameImage.objects.filter(category=category)
 
@@ -170,9 +184,14 @@ def start_game(request):
 
     selected = random.sample(list(images), 2)
 
+    # نخزن الصور في الغرفة
+    room.player1_image = selected[0].image_url
+    room.player2_image = selected[1].image_url
+    room.save()
+
     return Response({
         "success": True,
-        "player1_image": selected[0].image_url,
-        "player2_image": selected[1].image_url,
+        "player1_image": room.player1_image,
+        "player2_image": room.player2_image,
         "category": category
     })
