@@ -70,8 +70,14 @@ def postDataFromPageJoin(request):
         "key": key
     })
 
+import random
+from .models import Room, GameImage
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+
 @api_view(["GET"])
-def getRoomStatus(request):
+def start_game(request):
     key = request.GET.get("key")
 
     if not key:
@@ -88,94 +94,26 @@ def getRoomStatus(request):
             "message": "Room not found"
         }, status=404)
 
-    ready = room.player2 not in [None, ""]
+    # لو الصور اتحجزت قبل كده، رجّعها زي ما هي
+    if room.player1_image and room.player2_image:
+        return Response({
+            "success": True,
+            "category": room.category,
+            "player1_image": room.player1_image,
+            "player2_image": room.player2_image,
+        })
 
-    both_ready = room.player1_ready and room.player2_ready
-
-    return Response({
-        "success": True,
-        "player1": room.player1,
-        "player2": room.player2,
-        "ready": ready,
-        "player1_ready": room.player1_ready,
-        "player2_ready": room.player2_ready,
-        "both_ready": both_ready,
-
-        # 👇 دول اللي Flutter مستنيهم
-        "player1_image": room.player1_image,
-        "player2_image": room.player2_image,
-    })
-
-
-@api_view(["POST"])
-def set_ready_status(request):
-    key = request.data.get("key")
-    name = request.data.get("name")
-    ready = request.data.get("ready")
-
-    if key is None or name is None or ready is None:
+    # نختار category عشوائي
+    categories = GameImage.objects.values_list("category", flat=True).distinct()
+    if not categories:
         return Response({
             "success": False,
-            "message": "key, name and ready are required"
+            "message": "No categories found"
         }, status=400)
 
-    try:
-        room = Room.objects.get(key=key)
-    except Room.DoesNotExist:
-        return Response({
-            "success": False,
-            "message": "Room not found"
-        }, status=404)
-
-    # تحديد مين اللاعب اللي بيبعت
-    if room.player1 == name:
-        room.player1_ready = bool(ready)
-    elif room.player2 == name:
-        room.player2_ready = bool(ready)
-    else:
-        return Response({
-            "success": False,
-            "message": "Player not found in this room"
-        }, status=400)
-
-    room.save()
-
-    both_ready = room.player1_ready and room.player2_ready
-
-    return Response({
-        "success": True,
-        "message": "Ready status updated",
-        "player1_ready": room.player1_ready,
-        "player2_ready": room.player2_ready,
-        "both_ready": both_ready
-    })
-
-
-
-import random
-from .models import GameImage
-
-@api_view(["GET"])
-def start_game(request):
-    key = request.GET.get("key")
-    category = request.GET.get("category")
-
-    if not key or not category:
-        return Response({
-            "success": False,
-            "message": "key and category are required"
-        }, status=400)
-
-    try:
-        room = Room.objects.get(key=key)
-    except Room.DoesNotExist:
-        return Response({
-            "success": False,
-            "message": "Room not found"
-        }, status=404)
+    category = random.choice(list(categories))
 
     images = GameImage.objects.filter(category=category)
-
     if images.count() < 2:
         return Response({
             "success": False,
@@ -184,14 +122,15 @@ def start_game(request):
 
     selected = random.sample(list(images), 2)
 
-    # نخزن الصور في الغرفة
+    # نخزن في الغرفة
+    room.category = category
     room.player1_image = selected[0].image_url
     room.player2_image = selected[1].image_url
     room.save()
 
     return Response({
         "success": True,
+        "category": category,
         "player1_image": room.player1_image,
         "player2_image": room.player2_image,
-        "category": category
     })

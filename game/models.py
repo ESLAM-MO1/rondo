@@ -9,6 +9,8 @@ class Room(models.Model):
     player1_ready = models.BooleanField(default=False)
     player2_ready = models.BooleanField(default=False)
 
+    # للعبة
+    category = models.CharField(max_length=100, null=True, blank=True)
     player1_image = models.TextField(null=True, blank=True)
     player2_image = models.TextField(null=True, blank=True)
 
