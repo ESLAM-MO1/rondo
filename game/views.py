@@ -364,10 +364,8 @@ def start_game(request):
         return JsonResponse({
             'success': True,
             'category': 'image',
-            'player1_image': room['current_image']['name'],
-            'player1_image_url': room['current_image']['url'],
-            'player2_image': room['current_image']['name'],
-            'player2_image_url': room['current_image']['url'],
+            'player1_image': room['current_image']['url'],
+            'player2_image': room['current_image']['url'],
             'image': room['current_image']['url'],  # backward compatibility
             'theme_id': room['theme_id'],
         })
