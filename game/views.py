@@ -36,18 +36,15 @@ def load_images_from_csv():
                     'category': row.get('category', 'image'),
                 }
                 
-                # ✅ تصنيف الصور حسب عمود theme
                 if 'theme' in row:
-                    theme = row['theme'].strip()  # إزالة المسافات
+                    theme = row['theme'].strip()
                     if theme in ALL_IMAGES:
                         ALL_IMAGES[theme].append(image_data)
                         print(f"   ✅ Added {row['name']} to {theme}")
                     else:
                         print(f"   ⚠️ Unknown theme '{theme}' for image {row['name']}")
                 else:
-                    # التوزيع التلقائي إذا لم يكن هناك عمود theme
                     total_images = sum(len(imgs) for imgs in ALL_IMAGES.values())
-                    
                     if total_images < 30:
                         ALL_IMAGES['classic'].append(image_data)
                     elif total_images < 60:
@@ -73,7 +70,6 @@ def load_images_from_csv():
     except Exception as e:
         print(f"❌ Error loading CSV: {e}")
 
-# Load images on startup
 load_images_from_csv()
 
 
@@ -83,26 +79,22 @@ def get_random_theme_image(theme_id, room_code):
         print(f"❌ Theme '{theme_id}' not found or has no images")
         return None
     
-    # Initialize tracking
     if room_code not in used_images:
         used_images[room_code] = {theme_id: []}
     elif theme_id not in used_images[room_code]:
         used_images[room_code][theme_id] = []
     
-    # Get available images
     used_names = used_images[room_code][theme_id]
     available_images = [
         img for img in ALL_IMAGES[theme_id] 
         if img['name'] not in used_names
     ]
     
-    # Reset if all used
     if not available_images:
         print(f"🔄 All {theme_id} images used in room {room_code}, resetting pool...")
         used_images[room_code][theme_id] = []
         available_images = ALL_IMAGES[theme_id]
     
-    # Pick random
     selected_image = random.choice(available_images)
     used_images[room_code][theme_id].append(selected_image['name'])
     
@@ -119,8 +111,6 @@ def create_room(request):
         data = json.loads(request.body)
         room_code = data.get('key')
         player_name = data.get('name')
-        
-        # ✅ قبول كلا من 'theme' و 'theme_id'
         theme_id = data.get('theme_id') or data.get('theme', 'classic')
         
         print(f"\n📝 CREATE ROOM:")
@@ -146,35 +136,39 @@ def create_room(request):
                 'message': f'Invalid theme: {theme_id}. Available: {list(ALL_IMAGES.keys())}'
             }, status=400)
         
-        # Get initial image
-        initial_image = get_random_theme_image(theme_id, room_code)
+        # ✅ Get TWO different images - one for each player
+        player1_image = get_random_theme_image(theme_id, room_code)
+        player2_image = get_random_theme_image(theme_id, room_code)  # ← صورة تانية!
         
-        if not initial_image:
+        if not player1_image or not player2_image:
             return JsonResponse({
                 'success': False,
-                'message': f'No images available for theme: {theme_id}'
+                'message': f'Not enough images for theme: {theme_id}'
             }, status=500)
         
-        # Create room
+        # Create room with BOTH images
         rooms[room_code] = {
             'player1': player_name,
             'player2': None,
-            'theme_id': theme_id,  # ✅ حفظ theme_id
+            'theme_id': theme_id,
             'player1_ready': False,
             'player2_ready': False,
-            'current_image': initial_image,
+            'player1_image': player1_image,  # ✅ صورة Player 1
+            'player2_image': player2_image,  # ✅ صورة Player 2
             'created_at': datetime.now().isoformat(),
         }
         
-        print(f"✅ Room {room_code} created with theme: {theme_id}\n")
+        print(f"✅ Room {room_code} created:")
+        print(f"   Player1 image: {player1_image['name']}")
+        print(f"   Player2 image: {player2_image['name']}\n")
         
         return JsonResponse({
             'success': True,
             'message': 'Room created successfully',
             'room_code': room_code,
-            'theme_id': theme_id,  # ✅ إرجاع theme_id
-            'player1_image': initial_image['name'],  # اسم الصورة
-            'player1_image_url': initial_image['url'],  # URL الصورة
+            'theme_id': theme_id,
+            'player1_image': player1_image['name'],
+            'player1_image_url': player1_image['url'],
         })
         
     except Exception as e:
@@ -193,8 +187,6 @@ def join_room(request):
         data = json.loads(request.body)
         room_code = data.get('key')
         player_name = data.get('name')
-        
-        # ✅ قبول كلا من 'theme' و 'theme_id'
         theme_id = data.get('theme_id') or data.get('theme', 'classic')
         
         print(f"\n📝 JOIN ROOM:")
@@ -216,7 +208,6 @@ def join_room(request):
         
         room = rooms[room_code]
         
-        # ✅ Check theme match
         if room['theme_id'] != theme_id:
             print(f"❌ Theme mismatch: room={room['theme_id']}, player={theme_id}\n")
             return JsonResponse({
@@ -233,16 +224,16 @@ def join_room(request):
         room['player2'] = player_name
         room['player2_ready'] = False
         
-        print(f"✅ Player joined room {room_code} with theme: {theme_id}\n")
+        print(f"✅ Player joined room {room_code}\n")
         
         return JsonResponse({
             'success': True,
             'message': 'Joined room successfully',
             'player1': room['player1'],
             'player2': player_name,
-            'theme_id': room['theme_id'],  # ✅ إرجاع theme_id
-            'player2_image': room['current_image']['name'],
-            'player2_image_url': room['current_image']['url'],
+            'theme_id': room['theme_id'],
+            'player2_image': room['player2_image']['name'],   # ✅ صورة Player 2
+            'player2_image_url': room['player2_image']['url'], # ✅ URL Player 2
         })
         
     except Exception as e:
@@ -259,8 +250,6 @@ def set_ready_status(request):
     """Set player ready status"""
     try:
         data = json.loads(request.body)
-        
-        # ✅ قبول كلا الصيغتين
         room_code = data.get('room_code') or data.get('key')
         player_name = data.get('player_name') or data.get('name')
         is_ready = data.get('is_ready') or data.get('ready', False)
@@ -322,13 +311,13 @@ def get_room_status(request):
             'player1_ready': room['player1_ready'],
             'player2_ready': room['player2_ready'],
             'both_ready': both_ready,
-            'ready': both_ready,  # backward compatibility
-            'player1_image': room['current_image']['name'],
-            'player1_image_url': room['current_image']['url'],
-            'player2_image': room['current_image']['name'],
-            'player2_image_url': room['current_image']['url'],
+            'ready': both_ready,
+            'player1_image': room['player1_image']['name'],       # ✅ صورة Player 1
+            'player1_image_url': room['player1_image']['url'],
+            'player2_image': room['player2_image']['name'],       # ✅ صورة Player 2
+            'player2_image_url': room['player2_image']['url'],
             'theme_id': room['theme_id'],
-            'theme': room['theme_id'],  # backward compatibility
+            'theme': room['theme_id'],
         })
         
     except Exception as e:
@@ -341,10 +330,9 @@ def get_room_status(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 def start_game(request):
-    """Get game image - same as room status but for gameplay"""
+    """Get game image - returns the appropriate image for each player"""
     try:
         room_code = request.GET.get('key')
-        theme_id = request.GET.get('theme_id', 'classic')
         
         if not room_code or room_code not in rooms:
             return JsonResponse({
@@ -354,7 +342,6 @@ def start_game(request):
         
         room = rooms[room_code]
         
-        # Verify both players ready
         if not (room['player1_ready'] and room['player2_ready'] and room['player2']):
             return JsonResponse({
                 'success': False,
@@ -364,9 +351,9 @@ def start_game(request):
         return JsonResponse({
             'success': True,
             'category': 'image',
-            'player1_image': room['current_image']['url'],
-            'player2_image': room['current_image']['url'],
-            'image': room['current_image']['url'],  # backward compatibility
+            'player1_image': room['player1_image']['url'],  # ✅ URL Player 1
+            'player2_image': room['player2_image']['url'],  # ✅ URL Player 2
+            'image': room['player1_image']['url'],  # backward compatibility
             'theme_id': room['theme_id'],
         })
         
@@ -380,7 +367,7 @@ def start_game(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def reset_ready(request):
-    """Reset ready status (for next round)"""
+    """Reset ready status and get NEW images for next round"""
     try:
         data = json.loads(request.body)
         room_code = data.get('room_code') or data.get('key')
@@ -395,13 +382,17 @@ def reset_ready(request):
         room['player1_ready'] = False
         room['player2_ready'] = False
         
-        # Get new image
-        new_image = get_random_theme_image(room['theme_id'], room_code)
+        # ✅ Get TWO NEW different images
+        new_player1_image = get_random_theme_image(room['theme_id'], room_code)
+        new_player2_image = get_random_theme_image(room['theme_id'], room_code)
         
-        if new_image:
-            room['current_image'] = new_image
+        if new_player1_image and new_player2_image:
+            room['player1_image'] = new_player1_image
+            room['player2_image'] = new_player2_image
             
-        print(f"🔄 Reset ready for room {room_code}, new image: {new_image['name'] if new_image else 'none'}\n")
+        print(f"🔄 Reset ready for room {room_code}:")
+        print(f"   New Player1 image: {new_player1_image['name'] if new_player1_image else 'none'}")
+        print(f"   New Player2 image: {new_player2_image['name'] if new_player2_image else 'none'}\n")
         
         return JsonResponse({
             'success': True,
@@ -410,7 +401,7 @@ def reset_ready(request):
             'player2_ready': False,
             'both_ready': False,
             'images_cleared': True,
-            'new_image': new_image['url'] if new_image else None,
+            'new_image': new_player1_image['url'] if new_player1_image else None,
         })
         
     except Exception as e:
