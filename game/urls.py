@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import players_api
 
 urlpatterns = [
     # ✅ Room Management
@@ -19,4 +20,7 @@ urlpatterns = [
     path('reload-csv/', views.reload_csv, name='reload_csv'),
     path('delete-room/', views.delete_room, name='delete_room'),
     path('reset-room-images/', views.reset_room_images, name='reset_room_images'),
+
+    path("players/", players_api),
+
 ]

@@ -514,3 +514,58 @@ def reload_csv(request):
             'success': False,
             'message': str(e)
         }, status=500)
+    #Api 
+import random
+import requests
+from django.http import JsonResponse
+
+PLAYERS_NAMES = [
+    {"name": "Vinicius Junior", "country": "Brazil", "team": "Real Madrid"},
+    {"name": "Jude Bellingham", "country": "England", "team": "Real Madrid"},
+    {"name": "Kylian Mbappé", "country": "France", "team": "Real Madrid"},
+    {"name": "Lamine Yamal", "country": "Spain", "team": "Barcelona"},
+    {"name": "Robert Lewandowski", "country": "Poland", "team": "Barcelona"},
+    {"name": "Pedri", "country": "Spain", "team": "Barcelona"},
+    {"name": "Erling Haaland", "country": "Norway", "team": "Manchester City"},
+    {"name": "Kevin De Bruyne", "country": "Belgium", "team": "Manchester City"},
+    {"name": "Mohamed Salah", "country": "Egypt", "team": "Liverpool"},
+    {"name": "Virgil van Dijk", "country": "Netherlands", "team": "Liverpool"},
+    {"name": "Bukayo Saka", "country": "England", "team": "Arsenal"},
+    {"name": "Martin Ødegaard", "country": "Norway", "team": "Arsenal"},
+    {"name": "Harry Kane", "country": "England", "team": "Bayern Munich"},
+    {"name": "Jamal Musiala", "country": "Germany", "team": "Bayern Munich"},
+    {"name": "Achraf Hakimi", "country": "Morocco", "team": "PSG"},
+    {"name": "Ousmane Dembélé", "country": "France", "team": "PSG"},
+    {"name": "Dušan Vlahović", "country": "Serbia", "team": "Juventus"},
+    {"name": "Mostafa Mohamed", "country": "Egypt", "team": "Zamalek"},
+    {"name": "Percy Tau", "country": "South Africa", "team": "Al Ahly"},
+    {"name": "Mohamed El-Shenawy", "country": "Egypt", "team": "Al Ahly"},
+]
+
+def get_wikipedia_image(player_name):
+    try:
+        url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + player_name.replace(" ", "_")
+        res = requests.get(url, timeout=5)
+        data = res.json()
+        return data.get("thumbnail", {}).get("source", None)
+    except Exception:
+        return None
+
+def players_api(request):
+    players = []
+
+    for p in PLAYERS_NAMES:
+        image = get_wikipedia_image(p["name"])
+        if image:
+            players.append({
+                "name": p["name"],
+                "country": p["country"],
+                "team": p["team"],
+                "image": image
+            })
+
+    if len(players) < 2:
+        return JsonResponse({"error": "مفيش صور كفاية"}, status=404)
+
+    selected = random.sample(players, 2)
+    return JsonResponse({"count": len(players), "players": selected})
